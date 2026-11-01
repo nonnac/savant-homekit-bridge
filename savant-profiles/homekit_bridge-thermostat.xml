@@ -1,0 +1,482 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="racepoint_component_profile.xsd" manufacturer="HomeKit Bridge" model="Thermostat" device_class="HVAC_controller" minimum_component_engine_version="8.5" rpm_xml_version="1.0" rpm_xml_version_date="$Date$" alias="HomeKit Thermostats">
+  <notes>
+HomeKit thermostats (ecobee, Honeywell, Tado, Netatmo...) through savant-homekit-bridge.
+https://github.com/nonnac/savant-homekit-bridge
+
+One component handles every thermostat paired to the bridge.
+1. Set this component's IP address to the machine running the bridge (TCP port 8091).
+2. In the HVAC data table add one Zone per thermostat. Thermostat Address = the
+   "Savant address" shown for that device in the bridge web UI (for example: downstairs).
+3. Temperatures are in the units chosen in the bridge web UI (default Fahrenheit).
+
+States (suffix _address): ThermostatCurrentTemperature, ThermostatCurrentHeatPoint,
+ThermostatCurrentCoolPoint, ThermostatCurrentSetPoint, ThermostatCurrentHumidity,
+ThermostatMode, IsCurrentHVACModeHeat/Cool/Auto/Off, ThermostatFanMode,
+IsThermostatCurrentFanModeAuto/On, ThermostatCurrentState (HEATING/COOLING/IDLE),
+IsThermostatControllingHeat/Cool, IsThermostatOnline, ThermostatName.
+
+====================== Change Log ==================
+Version: 1.0 Change: Initial release.
+  </notes>
+
+  <control_interfaces preferred="ip">
+    <ip port="8091" response_time_length_ms="100" protocol="tcp">
+      <send_postfix type="hex">0A</send_postfix>
+      <receive_end_condition test_condition="data" type="hex">0A</receive_end_condition>
+    </ip>
+  </control_interfaces>
+
+  <media_interfaces>
+    <data name_on_component="Ethernet">
+      <combined_media>
+        <data_media type="ethernet"/>
+        <control port="8091"/>
+      </combined_media>
+    </data>
+    <internal name_on_component="HVAC Controller">
+      <environmental_media/>
+      <resource resource_type="ENV_HVACCONTROLLER_SOURCE"/>
+    </internal>
+  </media_interfaces>
+
+  <state_variable_list>
+    <state_variable name="LastBridgeReply" owning_logical_component="HVAC_controller" state_center_type="string" state_center_binding="LastBridgeReply"></state_variable>
+  </state_variable_list>
+
+  <logical_component logical_component_name="HVAC_controller">
+    <implementation>
+      <internal name_on_component="HVAC Controller"/>
+    </implementation>
+    <status_messages>
+      <status_message name="Temperature">
+        <constant type="character">HK,</constant>
+        <data type="character" terminator="," terminator_type="character">
+          <update state="ThermostatAddress" type="string"/>
+        </data>
+        <constant type="character">TEMP,</constant>
+        <data type="character" terminator_type="end_of_data">
+          <update state="ThermostatCurrentTemperature" type="string"/>
+        </data>
+        <append_data_to_state_names state="ThermostatAddress"/>
+      </status_message>
+      <status_message name="HeatPoint">
+        <constant type="character">HK,</constant>
+        <data type="character" terminator="," terminator_type="character">
+          <update state="ThermostatAddress" type="string"/>
+        </data>
+        <constant type="character">HEAT,</constant>
+        <data type="character" terminator_type="end_of_data">
+          <update state="ThermostatCurrentHeatPoint" type="string"/>
+        </data>
+        <append_data_to_state_names state="ThermostatAddress"/>
+      </status_message>
+      <status_message name="CoolPoint">
+        <constant type="character">HK,</constant>
+        <data type="character" terminator="," terminator_type="character">
+          <update state="ThermostatAddress" type="string"/>
+        </data>
+        <constant type="character">COOL,</constant>
+        <data type="character" terminator_type="end_of_data">
+          <update state="ThermostatCurrentCoolPoint" type="string"/>
+        </data>
+        <append_data_to_state_names state="ThermostatAddress"/>
+      </status_message>
+      <status_message name="SetPoint">
+        <constant type="character">HK,</constant>
+        <data type="character" terminator="," terminator_type="character">
+          <update state="ThermostatAddress" type="string"/>
+        </data>
+        <constant type="character">SETPOINT,</constant>
+        <data type="character" terminator_type="end_of_data">
+          <update state="ThermostatCurrentSetPoint" type="string"/>
+        </data>
+        <append_data_to_state_names state="ThermostatAddress"/>
+      </status_message>
+      <status_message name="Humidity">
+        <constant type="character">HK,</constant>
+        <data type="character" terminator="," terminator_type="character">
+          <update state="ThermostatAddress" type="string"/>
+        </data>
+        <constant type="character">HUMIDITY,</constant>
+        <data type="character" terminator_type="end_of_data">
+          <update state="ThermostatCurrentHumidity" type="string"/>
+        </data>
+        <append_data_to_state_names state="ThermostatAddress"/>
+      </status_message>
+      <status_message name="Name">
+        <constant type="character">HK,</constant>
+        <data type="character" terminator="," terminator_type="character">
+          <update state="ThermostatAddress" type="string"/>
+        </data>
+        <constant type="character">NAME,</constant>
+        <data type="character" terminator_type="end_of_data">
+          <update state="ThermostatName" type="string"/>
+        </data>
+        <append_data_to_state_names state="ThermostatAddress"/>
+      </status_message>
+      <status_message name="Mode">
+        <constant type="character">HK,</constant>
+        <data type="character" terminator="," terminator_type="character">
+          <update state="ThermostatAddress" type="string"/>
+        </data>
+        <constant type="character">MODE,</constant>
+        <data type="character" terminator_type="end_of_data">
+          <data_map match_required="yes">
+            <map key="HEAT">
+              <update state="ThermostatMode" type="string">HEAT</update>
+              <update state="IsCurrentHVACModeHeat" type="boolean">true</update>
+              <update state="IsCurrentHVACModeCool" type="boolean">false</update>
+              <update state="IsCurrentHVACModeAuto" type="boolean">false</update>
+              <update state="IsCurrentHVACModeOff" type="boolean">false</update>
+            </map>
+            <map key="COOL">
+              <update state="ThermostatMode" type="string">COOL</update>
+              <update state="IsCurrentHVACModeHeat" type="boolean">false</update>
+              <update state="IsCurrentHVACModeCool" type="boolean">true</update>
+              <update state="IsCurrentHVACModeAuto" type="boolean">false</update>
+              <update state="IsCurrentHVACModeOff" type="boolean">false</update>
+            </map>
+            <map key="AUTO">
+              <update state="ThermostatMode" type="string">AUTO</update>
+              <update state="IsCurrentHVACModeHeat" type="boolean">false</update>
+              <update state="IsCurrentHVACModeCool" type="boolean">false</update>
+              <update state="IsCurrentHVACModeAuto" type="boolean">true</update>
+              <update state="IsCurrentHVACModeOff" type="boolean">false</update>
+            </map>
+            <map key="OFF">
+              <update state="ThermostatMode" type="string">OFF</update>
+              <update state="IsCurrentHVACModeHeat" type="boolean">false</update>
+              <update state="IsCurrentHVACModeCool" type="boolean">false</update>
+              <update state="IsCurrentHVACModeAuto" type="boolean">false</update>
+              <update state="IsCurrentHVACModeOff" type="boolean">true</update>
+            </map>
+          </data_map>
+        </data>
+        <append_data_to_state_names state="ThermostatAddress"/>
+      </status_message>
+      <status_message name="Running">
+        <constant type="character">HK,</constant>
+        <data type="character" terminator="," terminator_type="character">
+          <update state="ThermostatAddress" type="string"/>
+        </data>
+        <constant type="character">RUNNING,</constant>
+        <data type="character" terminator_type="end_of_data">
+          <data_map match_required="yes">
+            <map key="HEATING">
+              <update state="ThermostatCurrentState" type="string">HEATING</update>
+              <update state="IsThermostatControllingHeat" type="boolean">true</update>
+              <update state="IsThermostatControllingCool" type="boolean">false</update>
+              <update state="IsThermostatIdle" type="boolean">false</update>
+            </map>
+            <map key="COOLING">
+              <update state="ThermostatCurrentState" type="string">COOLING</update>
+              <update state="IsThermostatControllingHeat" type="boolean">false</update>
+              <update state="IsThermostatControllingCool" type="boolean">true</update>
+              <update state="IsThermostatIdle" type="boolean">false</update>
+            </map>
+            <map key="IDLE">
+              <update state="ThermostatCurrentState" type="string">IDLE</update>
+              <update state="IsThermostatControllingHeat" type="boolean">false</update>
+              <update state="IsThermostatControllingCool" type="boolean">false</update>
+              <update state="IsThermostatIdle" type="boolean">true</update>
+            </map>
+          </data_map>
+        </data>
+        <append_data_to_state_names state="ThermostatAddress"/>
+      </status_message>
+      <status_message name="Fan">
+        <constant type="character">HK,</constant>
+        <data type="character" terminator="," terminator_type="character">
+          <update state="ThermostatAddress" type="string"/>
+        </data>
+        <constant type="character">FAN,</constant>
+        <data type="character" terminator_type="end_of_data">
+          <data_map match_required="yes">
+            <map key="AUTO">
+              <update state="ThermostatFanMode" type="string">AUTO</update>
+              <update state="IsThermostatCurrentFanModeAuto" type="boolean">true</update>
+              <update state="IsThermostatCurrentFanModeOn" type="boolean">false</update>
+            </map>
+            <map key="ON">
+              <update state="ThermostatFanMode" type="string">ON</update>
+              <update state="IsThermostatCurrentFanModeAuto" type="boolean">false</update>
+              <update state="IsThermostatCurrentFanModeOn" type="boolean">true</update>
+            </map>
+          </data_map>
+        </data>
+        <append_data_to_state_names state="ThermostatAddress"/>
+      </status_message>
+      <status_message name="Units">
+        <constant type="character">HK,</constant>
+        <data type="character" terminator="," terminator_type="character">
+          <update state="ThermostatAddress" type="string"/>
+        </data>
+        <constant type="character">UNITS,</constant>
+        <data type="character" terminator_type="end_of_data">
+          <data_map match_required="yes">
+            <map key="F">
+              <update state="ThermostatTemperatureFormat" type="string">F</update>
+              <update state="IsThermostatFormatFahrenheit" type="boolean">true</update>
+              <update state="IsThermostatFormatCelsius" type="boolean">false</update>
+            </map>
+            <map key="C">
+              <update state="ThermostatTemperatureFormat" type="string">C</update>
+              <update state="IsThermostatFormatFahrenheit" type="boolean">false</update>
+              <update state="IsThermostatFormatCelsius" type="boolean">true</update>
+            </map>
+          </data_map>
+        </data>
+        <append_data_to_state_names state="ThermostatAddress"/>
+      </status_message>
+      <status_message name="Online">
+        <constant type="character">HK,</constant>
+        <data type="character" terminator="," terminator_type="character">
+          <update state="ThermostatAddress" type="string"/>
+        </data>
+        <constant type="character">ONLINE,</constant>
+        <data type="character" terminator_type="end_of_data">
+          <data_map match_required="yes">
+            <map key="1">
+              <update state="IsThermostatOnline" type="boolean">true</update>
+            </map>
+            <map key="0">
+              <update state="IsThermostatOnline" type="boolean">false</update>
+            </map>
+          </data_map>
+        </data>
+        <append_data_to_state_names state="ThermostatAddress"/>
+      </status_message>
+      <status_message name="Reply">
+        <data type="character" terminator_type="end_of_data">
+          <update state="LastBridgeReply" type="string"/>
+        </data>
+      </status_message>
+    </status_messages>
+
+    <resource_component_actions resource_type="ENV_HVACCONTROLLER_SOURCE">
+      <action name="SetHVACModeHeat">
+        <action_argument name="ThermostatAddress"/>
+        <action_argument name="ThermostatAddress2"/>
+        <command_interface interface="ip">
+          <command response_required="no">
+            <parameter_list>
+              <parameter parameter_data_type="character">mode,</parameter>
+              <parameter parameter_data_type="character" action_argument="ThermostatAddress"/>
+              <parameter parameter_data_type="character">,HEAT</parameter>
+            </parameter_list>
+          </command>
+        </command_interface>
+      </action>
+      <action name="SetHVACModeCool">
+        <action_argument name="ThermostatAddress"/>
+        <action_argument name="ThermostatAddress2"/>
+        <command_interface interface="ip">
+          <command response_required="no">
+            <parameter_list>
+              <parameter parameter_data_type="character">mode,</parameter>
+              <parameter parameter_data_type="character" action_argument="ThermostatAddress"/>
+              <parameter parameter_data_type="character">,COOL</parameter>
+            </parameter_list>
+          </command>
+        </command_interface>
+      </action>
+      <action name="SetHVACModeAuto">
+        <action_argument name="ThermostatAddress"/>
+        <action_argument name="ThermostatAddress2"/>
+        <command_interface interface="ip">
+          <command response_required="no">
+            <parameter_list>
+              <parameter parameter_data_type="character">mode,</parameter>
+              <parameter parameter_data_type="character" action_argument="ThermostatAddress"/>
+              <parameter parameter_data_type="character">,AUTO</parameter>
+            </parameter_list>
+          </command>
+        </command_interface>
+      </action>
+      <action name="SetHVACModeOff">
+        <action_argument name="ThermostatAddress"/>
+        <action_argument name="ThermostatAddress2"/>
+        <command_interface interface="ip">
+          <command response_required="no">
+            <parameter_list>
+              <parameter parameter_data_type="character">mode,</parameter>
+              <parameter parameter_data_type="character" action_argument="ThermostatAddress"/>
+              <parameter parameter_data_type="character">,OFF</parameter>
+            </parameter_list>
+          </command>
+        </command_interface>
+      </action>
+      <action name="SetFanModeOn">
+        <action_argument name="ThermostatAddress"/>
+        <action_argument name="ThermostatAddress2"/>
+        <command_interface interface="ip">
+          <command response_required="no">
+            <parameter_list>
+              <parameter parameter_data_type="character">fan,</parameter>
+              <parameter parameter_data_type="character" action_argument="ThermostatAddress"/>
+              <parameter parameter_data_type="character">,ON</parameter>
+            </parameter_list>
+          </command>
+        </command_interface>
+      </action>
+      <action name="SetFanModeAuto">
+        <action_argument name="ThermostatAddress"/>
+        <action_argument name="ThermostatAddress2"/>
+        <command_interface interface="ip">
+          <command response_required="no">
+            <parameter_list>
+              <parameter parameter_data_type="character">fan,</parameter>
+              <parameter parameter_data_type="character" action_argument="ThermostatAddress"/>
+              <parameter parameter_data_type="character">,AUTO</parameter>
+            </parameter_list>
+          </command>
+        </command_interface>
+      </action>
+      <action name="SetHeatPointTemperature">
+        <action_argument name="ThermostatAddress"/>
+        <action_argument name="HeatPointTemperature"/>
+        <command_interface interface="ip">
+          <command response_required="no">
+            <parameter_list>
+              <parameter parameter_data_type="character">heat,</parameter>
+              <parameter parameter_data_type="character" action_argument="ThermostatAddress"/>
+              <parameter parameter_data_type="character">,</parameter>
+              <parameter parameter_data_type="character" action_argument="HeatPointTemperature"/>
+            </parameter_list>
+          </command>
+        </command_interface>
+      </action>
+      <action name="IncreaseHeatPointTemperature">
+        <action_argument name="ThermostatAddress"/>
+        <command_interface interface="ip">
+          <command response_required="no">
+            <parameter_list>
+              <parameter parameter_data_type="character">heatup,</parameter>
+              <parameter parameter_data_type="character" action_argument="ThermostatAddress"/>
+            </parameter_list>
+          </command>
+        </command_interface>
+      </action>
+      <action name="DecreaseHeatPointTemperature">
+        <action_argument name="ThermostatAddress"/>
+        <command_interface interface="ip">
+          <command response_required="no">
+            <parameter_list>
+              <parameter parameter_data_type="character">heatdown,</parameter>
+              <parameter parameter_data_type="character" action_argument="ThermostatAddress"/>
+            </parameter_list>
+          </command>
+        </command_interface>
+      </action>
+      <action name="SetCoolPointTemperature">
+        <action_argument name="ThermostatAddress"/>
+        <action_argument name="CoolPointTemperature"/>
+        <command_interface interface="ip">
+          <command response_required="no">
+            <parameter_list>
+              <parameter parameter_data_type="character">cool,</parameter>
+              <parameter parameter_data_type="character" action_argument="ThermostatAddress"/>
+              <parameter parameter_data_type="character">,</parameter>
+              <parameter parameter_data_type="character" action_argument="CoolPointTemperature"/>
+            </parameter_list>
+          </command>
+        </command_interface>
+      </action>
+      <action name="IncreaseCoolPointTemperature">
+        <action_argument name="ThermostatAddress"/>
+        <command_interface interface="ip">
+          <command response_required="no">
+            <parameter_list>
+              <parameter parameter_data_type="character">coolup,</parameter>
+              <parameter parameter_data_type="character" action_argument="ThermostatAddress"/>
+            </parameter_list>
+          </command>
+        </command_interface>
+      </action>
+      <action name="DecreaseCoolPointTemperature">
+        <action_argument name="ThermostatAddress"/>
+        <command_interface interface="ip">
+          <command response_required="no">
+            <parameter_list>
+              <parameter parameter_data_type="character">cooldown,</parameter>
+              <parameter parameter_data_type="character" action_argument="ThermostatAddress"/>
+            </parameter_list>
+          </command>
+        </command_interface>
+      </action>
+      <action name="SetTemperatureAuto">
+        <action_argument name="Temperature"/>
+        <action_argument name="ThermostatAddress"/>
+        <action_argument name="ThermostatAddress2"/>
+        <command_interface interface="ip">
+          <command response_required="no">
+            <parameter_list>
+              <parameter parameter_data_type="character">setpoint,</parameter>
+              <parameter parameter_data_type="character" action_argument="ThermostatAddress"/>
+              <parameter parameter_data_type="character">,</parameter>
+              <parameter parameter_data_type="character" action_argument="Temperature"/>
+            </parameter_list>
+          </command>
+        </command_interface>
+      </action>
+      <action name="IncreaseTemperatureAuto">
+        <action_argument name="ThermostatAddress"/>
+        <action_argument name="ThermostatAddress2"/>
+        <command_interface interface="ip">
+          <command response_required="no">
+            <parameter_list>
+              <parameter parameter_data_type="character">up,</parameter>
+              <parameter parameter_data_type="character" action_argument="ThermostatAddress"/>
+            </parameter_list>
+          </command>
+        </command_interface>
+      </action>
+      <action name="DecreaseTemperatureAuto">
+        <action_argument name="ThermostatAddress"/>
+        <action_argument name="ThermostatAddress2"/>
+        <command_interface interface="ip">
+          <command response_required="no">
+            <parameter_list>
+              <parameter parameter_data_type="character">down,</parameter>
+              <parameter parameter_data_type="character" action_argument="ThermostatAddress"/>
+            </parameter_list>
+          </command>
+        </command_interface>
+      </action>
+
+      <entity name="Zone" address_components="1">
+        <screen_representation>
+          <common_unique_identifier name="ThermostatAddress" address_component="1"/>
+        </screen_representation>
+        <query_status_with_action name="RefreshThermostat" period_ms="0">
+          <with_arg name="ThermostatAddress" address_component="1"/>
+        </query_status_with_action>
+      </entity>
+    </resource_component_actions>
+
+    <custom_component_actions>
+      <action name="RefreshThermostat">
+        <action_argument name="ThermostatAddress"/>
+        <command_interface interface="ip">
+          <command response_required="no">
+            <parameter_list>
+              <parameter parameter_data_type="character">refresh,</parameter>
+              <parameter parameter_data_type="character" action_argument="ThermostatAddress"/>
+            </parameter_list>
+          </command>
+        </command_interface>
+      </action>
+      <action name="RefreshAll">
+        <execute_on_schedule period_ms="300000"/>
+        <command_interface interface="ip">
+          <command response_required="no">
+            <parameter_list>
+              <parameter parameter_data_type="character">refresh</parameter>
+            </parameter_list>
+          </command>
+        </command_interface>
+      </action>
+    </custom_component_actions>
+  </logical_component>
+</component>

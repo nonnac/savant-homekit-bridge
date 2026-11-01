@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Savant HomeKit Bridge</title>
+<style>
+:root{--bg:#f5f5f2;--card:#fff;--ink:#1d1d1b;--mute:#6b6b66;--line:#e3e2dc;--acc:#1f6f5c;--warn:#a2461f;--ok:#2d7a3e}
+@media (prefers-color-scheme:dark){:root{--bg:#141413;--card:#1e1e1c;--ink:#ecebe6;--mute:#9a9992;--line:#33332f;--acc:#5fbfa5;--warn:#e08a63;--ok:#7cc48a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+header{padding:20px 16px 8px;max-width:980px;margin:auto;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+header h1{font-size:20px;margin:0}
+header span{color:var(--mute);font-size:13px}
+main{max-width:980px;margin:auto;padding:0 16px 40px;display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+h2{font-size:15px;margin:0 0 12px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.mute{color:var(--mute);font-size:13px}
+.row{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-weight:600;color:var(--mute);font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+input[type=text],input[type=password],input[type=number],select{font:inherit;color:inherit;background:transparent;border:1px solid var(--line);border-radius:6px;padding:5px 8px;min-width:0}
+button{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:6px;padding:5px 10px;cursor:pointer}
+button.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+button.danger{color:var(--warn)}
+.pill{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;border:1px solid var(--line)}
+.pill.on{color:var(--ok);border-color:currentColor}.pill.off{color:var(--warn);border-color:currentColor}
+.code{font:600 26px/1 ui-monospace,Menlo,monospace;letter-spacing:.06em}
+.qr{width:150px;height:150px;border-radius:8px;background:#fff}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+label.f{display:grid;gap:3px;font-size:12px;color:var(--mute)}
+.state{font-size:13px;color:var(--mute)}
+.tscroll{overflow-x:auto}
+#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:14px;display:none;max-width:90vw}
+</style>
+</head>
+<body>
+<header><h1>Savant HomeKit Bridge</h1><span id="ver"></span></header>
+<main>
+
+<section>
+  <h2>Apple Home <span id="apple-paired" class="pill"></span></h2>
+  <div class="row">
+    <img class="qr" id="qr" alt="HomeKit setup code">
+    <div>
+      <div class="mute">Setup code</div>
+      <div class="code" id="pin"></div>
+      <p class="mute" style="max-width:460px">In the Home app: <b>+</b> → Add Accessory → scan this code (or More options → enter the code).
+      The bridge carries your Savant lights and every HomeKit device paired below.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>HomeKit devices in Savant <button onclick="scan()">Find devices</button></h2>
+  <div class="tscroll"><table id="devs"><thead><tr><th>Device</th><th>Savant address</th><th>Status</th><th>In Apple Home</th><th></th></tr></thead><tbody></tbody></table></div>
+  <p class="mute" id="nodevs">No HomeKit devices paired yet. Click Find devices.</p>
+  <div id="scan" style="display:none;margin-top:14px">
+    <h2 style="margin-top:8px">Nearby HomeKit accessories</h2>
+    <p class="mute">Only unpaired accessories can be added. If yours says "paired", remove it from Apple Home first (or reset its HomeKit pairing on the device); the bridge puts it back into Apple Home for you.</p>
+    <div class="tscroll"><table id="found"><thead><tr><th>Name</th><th>Type</th><th>Address</th><th>Setup code</th><th></th></tr></thead><tbody></tbody></table></div>
+  </div>
+</section>
+
+<section>
+  <h2>Savant host</h2>
+  <div class="grid2">
+    <label class="f">Host IP<input type="text" id="s-host" placeholder="192.168.1.50"></label>
+    <label class="f">SSH user<input type="text" id="s-user"></label>
+    <label class="f">SSH password<input type="password" id="s-pass" placeholder="unchanged"></label>
+    <label class="f">Poll seconds<input type="number" id="s-poll" min="1" step="0.5"></label>
+  </div>
+  <label class="f" style="margin-top:10px">sclibridge path<input type="text" id="s-scli"></label>
+  <div class="row" style="margin-top:12px">
+    <button class="primary" onclick="saveSavant()">Save</button>
+    <button onclick="testSavant()">Test connection</button>
+    <span class="mute" id="s-status"></span>
+  </div>
+</section>
+
+<section>
+  <h2>Savant lights in Apple Home <span><button onclick="findLights()">Find lights</button> <button class="primary" onclick="saveLights()">Save lights</button></span></h2>
+  <div class="tscroll"><table id="lights"><thead><tr><th>Name in Apple Home</th><th>Savant load</th><th>Dimmable</th><th>Expose</th><th>Level</th><th></th></tr></thead><tbody></tbody></table></div>
+  <p class="mute" id="nolights">No lights yet. Save the Savant host, then click Find lights.</p>
+</section>
+
+<section>
+  <h2>Settings</h2>
+  <div class="grid2">
+    <label class="f">Temperature units used by Savant<select id="units"><option>F</option><option>C</option></select></label>
+    <label class="f">Bridge name in Apple Home<input type="text" id="aname"></label>
+  </div>
+  <div class="row" style="margin-top:12px"><button class="primary" onclick="saveSettings()">Save settings</button>
+  <span class="mute">Savant profiles connect to TCP port <b id="sport"></b> on this host.</span></div>
+</section>
+
+</main>
+<div id="toast"></div>
+<script>
+let S = null, lightRows = null;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function toast(m){const t=$("toast");t.textContent=m;t.style.display="block";clearTimeout(t._h);t._h=setTimeout(()=>t.style.display="none",4000)}
+async function api(path, body){
+  const r = await fetch(path, body===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+function tstate(st){
+  const p=[]; if(st.TEMP) p.push(`${st.TEMP}°${st.UNITS}`); p.push(st.MODE.toLowerCase());
+  if(st.MODE==="AUTO") p.push(`${st.HEAT}–${st.COOL}°`); else if(st.MODE!=="OFF") p.push(`set ${st.MODE==="HEAT"?st.HEAT:st.COOL}°`);
+  if(st.RUNNING!=="IDLE") p.push(st.RUNNING.toLowerCase()); if(st.HUMIDITY) p.push(st.HUMIDITY+"% RH");
+  return p.join(" · ");
+}
+function render(){
+  $("ver").textContent = "v"+S.version;
+  $("pin").textContent = S.apple.pin;
+  $("apple-paired").textContent = S.apple.paired ? "paired" : "not paired";
+  $("apple-paired").className = "pill " + (S.apple.paired ? "on" : "off");
+  $("sport").textContent = S.savant_port;
+  const tb = $("devs").tBodies[0]; tb.innerHTML = "";
+  $("nodevs").style.display = S.devices.length ? "none" : "";
+  for(const d of S.devices){
+    const tr = document.createElement("tr");
+    const states = d.thermostats.map(t=>`<div class="state">${esc(t.slug)}: ${esc(tstate(t.state))}</div>`).join("");
+    tr.innerHTML = `<td><input type="text" value="${esc(d.name)}" data-k="name"><div class="mute">${esc(d.manufacturer)} ${esc(d.model)}</div></td>
+      <td><input type="text" value="${esc(d.slug)}" data-k="slug" size="14">${states}</td>
+      <td><span class="pill ${d.online?"on":"off"}">${d.online?"online":"offline"}</span></td>
+      <td><input type="checkbox" data-k="expose" ${d.expose?"checked":""}></td>
+      <td style="white-space:nowrap"><button data-a="save">Save</button> <button class="danger" data-a="unpair">Unpair</button></td>`;
+    tr.querySelector('[data-a=save]').onclick = async()=>{
+      try{await api("/api/device/"+encodeURIComponent(d.id),{name:tr.querySelector('[data-k=name]').value,slug:tr.querySelector('[data-k=slug]').value,expose:tr.querySelector('[data-k=expose]').checked});toast("Saved");load()}catch(e){toast(e.message)}};
+    tr.querySelector('[data-a=unpair]').onclick = async()=>{
+      if(!confirm(`Unpair ${d.name}? It will need its setup code to pair again.`))return;
+      try{await api("/api/unpair/"+encodeURIComponent(d.id),{});toast("Unpaired");load()}catch(e){toast(e.message)}};
+    tb.appendChild(tr);
+  }
+  const s = S.savant;
+  if(document.activeElement.tagName!=="INPUT"){
+    $("s-host").value=s.host; $("s-user").value=s.user; $("s-scli").value=s.sclibridge; $("s-poll").value=s.poll_seconds;
+    $("units").value=S.units; $("aname").value=S.apple.name;
+  }
+  $("s-status").textContent = s.error ? "Error: "+s.error : (s.host ? `${s.profile_clients} Savant profile connection(s)` : "");
+  if(lightRows===null) lightRows = S.lights.map(l=>({...l}));
+  else for(const r of lightRows){const l=S.lights.find(x=>x.id===r.id); if(l) r.level=l.level;}
+  renderLights();
+}
+function renderLights(){
+  const tb=$("lights").tBodies[0]; tb.innerHTML="";
+  $("nolights").style.display = lightRows.length ? "none" : "";
+  lightRows.forEach((l,i)=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td><input type="text" value="${esc(l.name)}" data-k="name"></td>
+      <td class="mute">${esc(l.zone)} · ${esc(l.component)} ${esc(l.address.join("."))}${l.configured===false?' <span class="pill">new</span>':""}</td>
+      <td><input type="checkbox" data-k="dimmable" ${l.dimmable?"checked":""}></td>
+      <td><input type="checkbox" data-k="expose" ${l.expose?"checked":""}></td>
+      <td>${l.level==null?"–":l.level+"%"}</td>
+      <td style="white-space:nowrap"><button data-a="on">On</button> <button data-a="off">Off</button> <button class="danger" data-a="rm">✕</button></td>`;
+    tr.querySelector('[data-k=name]').oninput=e=>l.name=e.target.value;
+    tr.querySelector('[data-k=dimmable]').onchange=e=>l.dimmable=e.target.checked;
+    tr.querySelector('[data-k=expose]').onchange=e=>l.expose=e.target.checked;
+    tr.querySelector('[data-a=rm]').onclick=()=>{lightRows.splice(i,1);renderLights()};
+    for(const [a,lv] of [["on",100],["off",0]]) tr.querySelector(`[data-a=${a}]`).onclick=async()=>{
+      if(!S.lights.find(x=>x.id===l.id)) return toast("Save lights first");
+      try{await api("/api/light/"+l.id,{level:lv})}catch(e){toast(e.message)}};
+    tb.appendChild(tr);
+  });
+}
+async function load(){ try{S=await api("/api/status"); render()}catch(e){toast(e.message)} }
+async function scan(){
+  $("scan").style.display=""; const tb=$("found").tBodies[0]; tb.innerHTML='<tr><td colspan="5" class="mute">Looking…</td></tr>';
+  const list = await api("/api/discover"); tb.innerHTML="";
+  if(!list.length) tb.innerHTML='<tr><td colspan="5" class="mute">Nothing found. The bridge must be on the same network (host networking in Docker).</td></tr>';
+  for(const d of list){
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${esc(d.name)}<div class="mute">${esc(d.model)}</div></td><td>${esc(d.category)}</td><td class="mute">${esc(d.address)}</td>
+      <td>${d.ours?'<span class="pill on">added</span>':d.paired?'<span class="pill off">paired elsewhere</span>':'<input type="text" placeholder="123-45-678" size="11">'}</td>
+      <td>${!d.paired&&!d.ours?'<button class="primary">Pair</button>':""}</td>`;
+    const b=tr.querySelector("button");
+    if(b) b.onclick=async()=>{
+      b.disabled=true; b.textContent="Pairing…";
+      try{await api("/api/pair",{id:d.id,pin:tr.querySelector("input").value}); toast("Paired "+d.name); load(); scan()}
+      catch(e){toast(e.message); b.disabled=false; b.textContent="Pair"}};
+    tb.appendChild(tr);
+  }
+}
+async function saveSavant(){
+  try{await api("/api/savant",{host:$("s-host").value,user:$("s-user").value,password:$("s-pass").value,sclibridge:$("s-scli").value,poll_seconds:$("s-poll").value});$("s-pass").value="";toast("Saved");load()}catch(e){toast(e.message)}
+}
+async function testSavant(){ $("s-status").textContent="Testing…"; try{const r=await api("/api/savant/test",{}); $("s-status").textContent=r.message}catch(e){$("s-status").textContent="Error: "+e.message} }
+async function findLights(){
+  toast("Asking the Savant host for its lights…");
+  try{const found=await api("/api/savant/lights");
+    let n=0; for(const f of found){ if(!lightRows.find(r=>r.state===f.state)){ lightRows.push({...f, expose:false}); n++; } }
+    renderLights(); toast(`${found.length} loads found, ${n} new. Name the ones you want, tick Expose, then Save lights.`)}
+  catch(e){toast(e.message)}
+}
+async function saveLights(){ try{const r=await api("/api/lights",lightRows); lightRows=null; toast(`Saved ${r.count} lights`); load()}catch(e){toast(e.message)} }
+async function saveSettings(){ try{const r=await api("/api/settings",{units:$("units").value,apple_name:$("aname").value}); toast(r.note); load()}catch(e){toast(e.message)} }
+$("qr").src="/qr.svg";
+load(); setInterval(load, 4000);
+</script>
+</body>
+</html>
