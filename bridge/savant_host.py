@@ -181,6 +181,12 @@ class SavantHost:
                 zones.setdefault((m["comp"], m["logical"]), []).append((m["zone"], m["variant"]))
             elif m := LEVEL_RE.match(n):
                 loads.append((n, m["comp"], m["logical"], m["addr"]))
+        # Some profiles (Lutron) publish a load twice: DimmerLevel_<id> and CurrentDimmerLevel_<x>_<id>.
+        # Keep the plain one; its address is what the profile's DimmerSet takes.
+        plain = {(c, l, a) for n, c, l, a in loads if ".DimmerLevel_" in n}
+        loads = [x for x in loads if ".DimmerLevel_" in x[0]
+                 or (x[1], x[2], x[3].split("_")[-1].lstrip("0") or "0") not in
+                 {(c, l, a.lstrip("0") or "0") for c, l, a in plain}]
         known = {l.state for l in self.lights()}
         out = []
         for state, comp, logical, addr in loads:

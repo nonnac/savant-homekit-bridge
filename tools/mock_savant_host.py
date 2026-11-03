@@ -10,6 +10,7 @@ import asyncssh
 STATES = {"Lutron.Lighting_controller.CurrentDimmerLevel_1_10": "0",
           "Lutron.Lighting_controller.CurrentDimmerLevel_1_12": "100",
           "Lutron.Lighting_controller.CurrentDimmerLevel_1_13": "40",
+          "Lutron.Lighting_controller.DimmerLevel_13": "40",
           "Savant Host.Lighting.CurrentDimmerLevel_1_001": "0"}
 ZONES = ["Office", "Kitchen"]
 NAMES = list(STATES) + [f"{z}.{c}.1.SVC_ENV_LIGHTING.ServiceIsActive" for z in ZONES
