@@ -112,7 +112,7 @@ Setpoints follow HomeKit's model:
 ## Savant lights into Apple Home
 
 1. Under **Savant host**, enter the host's IP and the SSH login: user `rpm` and that system's password, the same one you use for Terminal. The `sclibridge` path defaults to the Savant 10/11 location. Click **Test connection**.
-2. Click **Find lights**. The bridge asks the host for every lighting load it knows. This uses `sclibridge statenames`, so it only runs when you click.
+2. Click **Find lights**. The bridge asks the host for every lighting load it knows. This reads the full `sclibridge statenames` list (Savant 11 ignores its filter argument), so it only runs when you click.
 3. Name the loads you want, tick **Expose**, untick **Dimmable** for switches, and click **Save lights**. Use **On** and **Off** to check that each load really responds.
 4. Add the bridge in the Home app: **+** → Add Accessory → scan the QR code shown in the UI, or type the setup code.
 

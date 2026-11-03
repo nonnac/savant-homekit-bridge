@@ -171,7 +171,9 @@ class SavantHost:
 
     async def discover_lights(self) -> list[dict]:
         """Find lighting loads the host exposes. Uses statenames, so run it on demand only."""
-        names = (await self.scli("statenames", r"DimmerLevel_|SVC_ENV_LIGHTING\.ServiceIsActive", timeout=60)).split("\n")
+        # statenames' optional filter argument returns nothing on Savant 11, so fetch the full list
+        # (a few thousand names) and filter here.
+        names = (await self.scli("statenames", timeout=120)).split("\n")
         zones: dict[tuple[str, str], list[tuple[str, str]]] = {}
         loads = []
         for n in (x.strip() for x in names):

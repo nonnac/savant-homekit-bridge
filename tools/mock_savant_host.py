@@ -9,9 +9,11 @@ import asyncssh
 
 STATES = {"Lutron.Lighting_controller.CurrentDimmerLevel_1_10": "0",
           "Lutron.Lighting_controller.CurrentDimmerLevel_1_12": "100",
-          "Lutron.Lighting_controller.CurrentDimmerLevel_1_13": "40"}
+          "Lutron.Lighting_controller.CurrentDimmerLevel_1_13": "40",
+          "Savant Host.Lighting.CurrentDimmerLevel_1_001": "0"}
 ZONES = ["Office", "Kitchen"]
-NAMES = list(STATES) + [f"{z}.Lutron.Lighting_controller.1.SVC_ENV_LIGHTING.ServiceIsActive" for z in ZONES]
+NAMES = list(STATES) + [f"{z}.{c}.1.SVC_ENV_LIGHTING.ServiceIsActive" for z in ZONES
+                        for c in ("Lutron.Lighting_controller", "Savant Host.Lighting")]
 LOG = []
 
 
@@ -20,9 +22,8 @@ def scli(args):
     if cmd == "userzones":
         return "\n".join(ZONES) + "\n"
     if cmd == "statenames":
-        import re
-        rx = re.compile(rest[0]) if rest else None
-        return "\n".join(n for n in NAMES if not rx or rx.search(n)) + "\n"
+        # like Savant 11: a filter argument returns nothing
+        return "" if rest else "\n".join(NAMES) + "\n"
     if cmd == "readstate":
         return "\n".join(STATES.get(n, "") for n in rest) + "\n"
     if cmd == "servicerequest":
